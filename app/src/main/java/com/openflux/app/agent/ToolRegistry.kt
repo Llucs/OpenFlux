@@ -5,13 +5,16 @@ import com.openflux.app.agent.tools.EditTool
 import com.openflux.app.agent.tools.FileTool
 import com.openflux.app.agent.tools.GlobTool
 import com.openflux.app.agent.tools.GrepTool
+import com.openflux.app.agent.tools.PlanTool
 import com.openflux.app.agent.tools.ReadTool
 import com.openflux.app.agent.tools.TaskTool
 import com.openflux.app.agent.tools.WebFetchTool
 import com.openflux.app.agent.tools.WebSearchTool
+import com.openflux.app.model.Plan
 
 class ToolRegistry {
     private val tools = mutableMapOf<String, Tool>()
+    val plan = Plan()
 
     init {
         register(BashTool())
@@ -23,6 +26,7 @@ class ToolRegistry {
         register(WebFetchTool())
         register(WebSearchTool())
         register(TaskTool())
+        register(PlanTool(plan))
     }
 
     fun register(tool: Tool) {

@@ -2,17 +2,17 @@ plugins {
     id("com.android.library")
 }
 
-val compileSdk: String by project
-val minSdk: String by project
-val targetSdk: String by project
+val compileSdk = (project.properties["compileSdk"]?.toString() ?: "35").toInt()
+val minSdk = (project.properties["minSdk"]?.toString() ?: "26").toInt()
+val targetSdk = (project.properties["targetSdk"]?.toString() ?: "35").toInt()
 
 android {
     namespace = "com.termux.view"
-    compileSdk = compileSdk.toInt()
+    compileSdk = compileSdk
 
     defaultConfig {
-        minSdk = minSdk.toInt()
-        targetSdk = targetSdk.toInt()
+        minSdk = minSdk
+        targetSdk = targetSdk
     }
 
     compileOptions {

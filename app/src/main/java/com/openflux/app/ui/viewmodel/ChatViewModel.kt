@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.openflux.app.agent.AgentEngine
 import com.openflux.app.agent.AgentState
 import com.openflux.app.model.Message
+import com.openflux.app.model.Plan
 import com.openflux.app.model.TokenUsage
 import com.openflux.app.net.ApiClient
 import com.openflux.app.net.SessionManager
@@ -32,7 +33,7 @@ class ChatViewModel : ViewModel() {
     private val _tokenUsage = MutableStateFlow(TokenUsage())
     val tokenUsage: StateFlow<TokenUsage> = _tokenUsage.asStateFlow()
 
-    val sessionUsage = tokenTracker.sessionUsage
+    val plan: Plan get() = agentEngine.toolRegistry.plan
 
     init {
         viewModelScope.launch {

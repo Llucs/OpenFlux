@@ -3,24 +3,24 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val appVersionName: String by project
-val appVersionCode: String by project
-val compileSdk: String by project
-val minSdk: String by project
-val targetSdk: String by project
+val appVersionName = project.properties["appVersionName"]?.toString() ?: "1.0.0"
+val appVersionCode = (project.properties["appVersionCode"]?.toString() ?: "1").toInt()
+val compileSdk = (project.properties["compileSdk"]?.toString() ?: "35").toInt()
+val minSdk = (project.properties["minSdk"]?.toString() ?: "26").toInt()
+val targetSdk = (project.properties["targetSdk"]?.toString() ?: "35").toInt()
 
 android {
     namespace = "com.openflux.app"
-    compileSdk = compileSdk.toInt()
+    compileSdk = compileSdk
 
     defaultConfig {
         applicationId = "com.openflux.app"
-        minSdk = minSdk.toInt()
-        targetSdk = targetSdk.toInt()
-        versionCode = appVersionCode.toInt()
+        minSdk = minSdk
+        targetSdk = targetSdk
+        versionCode = appVersionCode
         versionName = appVersionName
         buildConfigField("String", "VERSION_NAME", "\"$appVersionName\"")
-        buildConfigField("int", "VERSION_CODE", appVersionCode)
+        buildConfigField("int", "VERSION_CODE", appVersionCode.toString())
     }
 
     buildFeatures {

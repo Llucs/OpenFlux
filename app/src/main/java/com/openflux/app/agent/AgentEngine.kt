@@ -1,7 +1,6 @@
 package com.openflux.app.agent
 
 import com.openflux.app.model.Message
-import com.openflux.app.model.ToolResult
 import com.openflux.app.net.ApiClient
 import com.openflux.app.net.SessionManager
 import com.openflux.app.net.TokenTracker
@@ -10,15 +9,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 enum class AgentState {
-    IDLE, THINKING, EXECUTING_TOOL, WAITING_INPUT, COMPACTING, ERROR
+    IDLE, THINKING, EXECUTING_TOOL, COMPACTING, ERROR
 }
 
 data class AgentAction(
-    val type: String, // think, tool_call, tool_result, message, compact, error
+    val type: String,
     val content: String,
     val toolName: String? = null,
     val toolArgs: Map<String, Any>? = null,
@@ -29,7 +26,7 @@ class AgentEngine(
     private val apiClient: ApiClient,
     private val sessionManager: SessionManager,
     private val tokenTracker: TokenTracker,
-    private val toolRegistry: ToolRegistry = ToolRegistry()
+    val toolRegistry: ToolRegistry = ToolRegistry()
 ) {
     private val _state = MutableStateFlow(AgentState.IDLE)
     val state: StateFlow<AgentState> = _state.asStateFlow()
@@ -38,13 +35,12 @@ class AgentEngine(
     val actions: StateFlow<List<AgentAction>> = _actions.asStateFlow()
 
     private var systemPrompt = buildDefaultSystemPrompt()
-    private val pendingToolCalls = mutableMapOf<String, Map<String, Any>>()
 
     fun setSystemPrompt(prompt: String) {
         systemPrompt = prompt
     }
 
-    suspend fun processUserInput(input: String): List<AgentAction> = withContext(Dispatchers.IO) {
+    suspend fun processUserInput(input: String) = withContext(Dispatchers.IO) {
         _state.value = AgentState.THINKING
         val actions = mutableListOf<AgentAction>()
 
@@ -52,7 +48,6 @@ class AgentEngine(
         sessionManager.addMessage(userMsg)
         actions.add(AgentAction(type = "message", content = input))
 
-        // Check compaction
         if (tokenTracker.needsCompaction()) {
             _state.value = AgentState.COMPACTING
             val summary = tokenTracker.getCompactSummary()
@@ -62,27 +57,51 @@ class AgentEngine(
         }
 
         try {
-            val maxIterations = 10
-            var shouldContinue = true
-            var iteration = 0
+            for (iteration in 1..25) {
+                _state.value = AgentState.THINKING
+                val messages = buildMessages()
+                val response = apiClient.complete(messages)
 
-            val initialMessages = buildMessages()
+                response.usage?.let { tokenTracker.track(it) }
+                response.usage?.let { sessionManager.updateUsage(it) }
 
-            // Get AI response
-            _state.value = AgentState.THINKING
-            val response = apiClient.complete(initialMessages)
+                val toolCalls = parseToolCalls(response.content)
+                if (toolCalls.isEmpty()) {
+                    val assistantMsg = Message(
+                        role = "assistant",
+                        content = response.content,
+                        reasoningContent = response.reasoningContent
+                    )
+                    sessionManager.addMessage(assistantMsg)
+                    actions.add(AgentAction(type = "think", content = response.content))
+                    break
+                }
 
-            response.usage?.let { tokenTracker.track(it) }
-            response.usage?.let { sessionManager.updateUsage(it) }
+                val thinkContent = response.content.substringBefore("<tool_call>").trim()
+                if (thinkContent.isNotEmpty()) {
+                    val thinkingMsg = Message(role = "assistant", content = thinkContent)
+                    sessionManager.addMessage(thinkingMsg)
+                    actions.add(AgentAction(type = "think", content = thinkContent))
+                }
 
-            val assistantMsg = Message(
-                role = "assistant",
-                content = response.content,
-                reasoningContent = response.reasoningContent
-            )
-            sessionManager.addMessage(assistantMsg)
-            actions.add(AgentAction(type = "think", content = response.content))
-
+                for ((toolName, toolArgs) in toolCalls) {
+                    _state.value = AgentState.EXECUTING_TOOL
+                    val result = toolRegistry.execute(toolName, toolArgs)
+                    val resultMsg = Message(
+                        role = "tool",
+                        content = result.output,
+                        toolCallId = toolName
+                    )
+                    sessionManager.addMessage(resultMsg)
+                    actions.add(AgentAction(
+                        type = "tool_result",
+                        content = "$toolName executed",
+                        toolName = toolName,
+                        toolArgs = toolArgs,
+                        toolResult = result.output
+                    ))
+                }
+            }
         } catch (e: Exception) {
             _state.value = AgentState.ERROR
             actions.add(AgentAction(type = "error", content = "Error: ${e.message ?: "Unknown error"}"))
@@ -90,7 +109,28 @@ class AgentEngine(
 
         _state.value = AgentState.IDLE
         _actions.value = actions
-        actions
+    }
+
+    private fun parseToolCalls(content: String): List<Pair<String, Map<String, Any>>> {
+        val calls = mutableListOf<Pair<String, Map<String, Any>>>()
+        val pattern = Regex("<tool_call>\\s*\\{[^}]+\\}", RegexOption.DOT_MATCHES_ALL)
+        val matches = pattern.findAll(content)
+        for (match in matches) {
+            try {
+                val json = match.value.removePrefix("<tool_call>").trim()
+                val toolName = Regex("\"tool\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1)
+                val argsJson = Regex("\"args\"\\s*:\\s*\\{([^}]+)\\}").find(json)
+                if (toolName != null && argsJson != null) {
+                    val args = mutableMapOf<String, Any>()
+                    val argPairs = Regex("\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"").findAll(argsJson.value)
+                    for (arg in argPairs) {
+                        args[arg.groupValues[1]] = arg.groupValues[2]
+                    }
+                    calls.add(toolName to args)
+                }
+            } catch (_: Exception) {}
+        }
+        return calls
     }
 
     private fun buildMessages(): List<Message> {
@@ -101,40 +141,35 @@ class AgentEngine(
     }
 
     private fun buildDefaultSystemPrompt(): String = buildString {
-        appendLine("You are OpenFlux, an advanced autonomous AI coding agent running on Android.")
-        appendLine("You have access to a full Linux environment through Termux terminal integration.")
+        appendLine("You are OpenFlux, an autonomous AI coding agent running on Android with Termux terminal integration.")
         appendLine()
         appendLine("## Available Tools")
-        appendLine("- bash: Execute shell commands in the Termux environment")
-        appendLine("- read: Read file contents")
-        appendLine("- edit: Edit files with exact string replacement")
-        appendLine("- write: Write new files")
-        appendLine("- grep: Search file contents with regex")
-        appendLine("- glob: Find files by glob pattern")
-        appendLine("- webFetch: Fetch URL contents")
-        appendLine("- webSearch: Search the web")
-        appendLine("- task: Delegate subtasks to sub-agents")
+        for (tool in toolRegistry.getAll()) {
+            appendLine("- ${tool.name}: ${tool.description}")
+        }
         appendLine()
-        appendLine("## Capabilities")
-        appendLine("- Plan and execute complex multi-step tasks")
-        appendLine("- Write, read, edit, and refactor code")
-        appendLine("- Execute shell commands and scripts")
-        appendLine("- Search codebases and files")
-        appendLine("- Research using web search and fetch")
-        appendLine("- Delegate work to sub-agents via the task tool")
+        appendLine("## How to Use Tools")
+        appendLine("To use a tool, output:")
+        appendLine("<tool_call>")
+        appendLine("{\"tool\": \"toolName\", \"args\": {\"key\": \"value\"}}")
+        appendLine("</tool_call>")
+        appendLine()
+        appendLine("## Planning")
+        appendLine("For complex tasks, create a plan first using the plan tool with action=todowrite and items array.")
+        appendLine("Update plan item status as you complete them.")
         appendLine()
         appendLine("## Guidelines")
-        appendLine("- First understand the full task before acting")
-        appendLine("- Create a plan for complex tasks")
-        appendLine("- Use tools strategically to accomplish goals")
-        appendLine("- When you encounter errors, debug and fix them")
-        appendLine("- Ask for clarification when needed")
-        appendLine("- Think step by step for complex problems")
+        appendLine("- Understand the full task before acting")
+        appendLine("- Create plans for multi-step tasks")
+        appendLine("- Use tools strategically")
+        appendLine("- Debug errors and retry")
+        appendLine("- Think step by step")
     }
 
     fun reset() {
         sessionManager.createNewSession()
         tokenTracker.resetSession()
+        toolRegistry.plan.items.clear()
         _state.value = AgentState.IDLE
         _actions.value = emptyList()
     }
