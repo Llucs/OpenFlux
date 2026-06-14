@@ -4,19 +4,31 @@ plugins {
 }
 
 val appVersionName =
-    project.properties["appVersionName"]?.toString() ?: "1.0.0"
+    project.findProperty("appVersionName")?.toString() ?: "1.0.0"
 
 val appVersionCode =
-    (project.properties["appVersionCode"]?.toString() ?: "1").toInt()
+    project.findProperty("appVersionCode")
+        ?.toString()
+        ?.toInt()
+        ?: 1
 
 val compileSdkVersion =
-    (project.properties["compileSdkVersion"]?.toString() ?: "35").toInt()
+    project.findProperty("compileSdkVersion")
+        ?.toString()
+        ?.toInt()
+        ?: 35
 
 val minSdkVersion =
-    (project.properties["minSdkVersion"]?.toString() ?: "26").toInt()
+    project.findProperty("minSdkVersion")
+        ?.toString()
+        ?.toInt()
+        ?: 26
 
 val targetSdkVersion =
-    (project.properties["targetSdkVersion"]?.toString() ?: "35").toInt()
+    project.findProperty("targetSdkVersion")
+        ?.toString()
+        ?.toInt()
+        ?: 35
 
 android {
     namespace = "com.openflux.app"
