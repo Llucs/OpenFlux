@@ -1,6 +1,9 @@
 package com.openflux.app.terminal
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
 import com.termux.terminal.TerminalSession
@@ -10,6 +13,7 @@ import com.termux.view.TerminalViewClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 
 class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionClient {
 
@@ -31,7 +35,7 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
             "TERM=xterm-256color",
             "HOME=/data/data/com.termux/files/home",
             "PREFIX=/data/data/com.termux/files/usr",
-            "PATH=/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/bin/applets:/system/bin:/system/xbin",
+            "PATH=/data/data/com.termux/files/usr/bin:/system/bin",
             "LANG=en_US.UTF-8"
         )
         session = TerminalSession(shellPath, cwd, null, env, 2000, this)
@@ -51,10 +55,8 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
 
     private fun findShell(): String {
         val termuxShell = "/data/data/com.termux/files/usr/bin/bash"
-        val shShell = "/system/bin/sh"
         return when {
-            java.io.File(termuxShell).exists() -> termuxShell
-            java.io.File(shShell).exists() -> shShell
+            File(termuxShell).exists() -> termuxShell
             else -> "sh"
         }
     }
@@ -72,12 +74,12 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
     }
 
     override fun onCopyTextToClipboard(session: TerminalSession, text: String) {
-        val clipboard = terminalView.context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
+        val clipboard = terminalView.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("terminal", text))
     }
 
     override fun onPasteTextFromClipboard(session: TerminalSession) {
-        val clipboard = terminalView.context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clipboard = terminalView.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clipData = clipboard.primaryClip
         if (clipData != null && clipData.itemCount > 0) {
             val text = clipData.getItemAt(0).text
@@ -95,13 +97,13 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
 
     override fun getTerminalCursorStyle(): Int? = null
 
-    override fun logError(tag: String, message: String) = android.util.Log.e(tag, message)
-    override fun logWarn(tag: String, message: String) = android.util.Log.w(tag, message)
-    override fun logInfo(tag: String, message: String) = android.util.Log.i(tag, message)
-    override fun logDebug(tag: String, message: String) = android.util.Log.d(tag, message)
-    override fun logVerbose(tag: String, message: String) = android.util.Log.v(tag, message)
-    override fun logStackTraceWithMessage(tag: String, message: String, e: Exception) = android.util.Log.e(tag, message, e)
-    override fun logStackTrace(tag: String, e: Exception) = android.util.Log.e(tag, "stacktrace", e)
+    override fun logError(tag: String, message: String) = Log.e(tag, message)
+    override fun logWarn(tag: String, message: String) = Log.w(tag, message)
+    override fun logInfo(tag: String, message: String) = Log.i(tag, message)
+    override fun logDebug(tag: String, message: String) = Log.d(tag, message)
+    override fun logVerbose(tag: String, message: String) = Log.v(tag, message)
+    override fun logStackTraceWithMessage(tag: String, message: String, e: Exception) = Log.e(tag, message, e)
+    override fun logStackTrace(tag: String, e: Exception) = Log.e(tag, "stacktrace", e)
 
     override fun onScale(scale: Float): Float = scale.coerceIn(0.5f, 2.0f)
     override fun onSingleTapUp(e: MotionEvent) { terminalView.requestFocus() }

@@ -1,5 +1,6 @@
 package com.openflux.app.net
 
+import com.openflux.app.BuildConfig
 import com.openflux.app.model.ApiResponse
 import com.openflux.app.model.Message
 import com.openflux.app.model.TokenUsage
@@ -50,7 +51,7 @@ class ApiClient(
     private fun buildHeaders(): Map<String, String> = mapOf(
         "Content-Type" to "application/json",
         "Authorization" to "Bearer $apiKey",
-        "User-Agent" to "OpenFlux/1.0.0 ai-sdk/provider-utils/4.0.23",
+        "User-Agent" to "OpenFlux/${BuildConfig.VERSION_NAME} ai-sdk/provider-utils/4.0.23",
         "x-opencode-client" to "android",
         "x-opencode-project" to "openflux",
         "x-opencode-session" to sessionId,

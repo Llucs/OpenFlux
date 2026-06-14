@@ -10,6 +10,5 @@ class OpenFluxApp : Application() {
 
     companion object {
         lateinit var instance: OpenFluxApp
-            private set
     }
 }

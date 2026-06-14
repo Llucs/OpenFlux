@@ -15,7 +15,7 @@ dependencyResolutionManagement {
 }
 rootProject.name = "OpenFlux"
 include(":app")
-include(":Termux:terminal-emulator")
-include(":Termux:terminal-view")
-project(":Termux:terminal-emulator").projectDir = file("Termux/terminal-emulator")
-project(":Termux:terminal-view").projectDir = file("Termux/terminal-view")
+include(":termux:terminal-emulator")
+include(":termux:terminal-view")
+project(":termux:terminal-emulator").projectDir = file("termux/terminal-emulator")
+project(":termux:terminal-view").projectDir = file("termux/terminal-view")

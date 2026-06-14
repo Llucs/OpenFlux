@@ -139,12 +139,6 @@ fun ChatScreen(
                         color = PureWhite.copy(alpha = 0.5f),
                         fontSize = 14.sp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Powered by DeepSeek V4 Flash",
-                        color = PureWhite.copy(alpha = 0.3f),
-                        fontSize = 12.sp
-                    )
                 }
             }
         } else {

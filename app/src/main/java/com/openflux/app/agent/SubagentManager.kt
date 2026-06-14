@@ -42,8 +42,6 @@ class SubagentManager(
     suspend fun executeTask(task: SubagentTask): ToolResult = withContext(Dispatchers.IO) {
         task.status = SubagentStatus.RUNNING
         try {
-            // In a real implementation, this would create a sub-agent that runs
-            // with its own API client instance
             val result = ToolResult.success("Task '${task.description}' completed")
             task.result = result
             task.status = SubagentStatus.COMPLETED

@@ -3,20 +3,29 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val appVersionName: String by project
+val appVersionCode: String by project
+val compileSdk: String by project
+val minSdk: String by project
+val targetSdk: String by project
+
 android {
     namespace = "com.openflux.app"
-    compileSdk = 35
+    compileSdk = compileSdk.toInt()
 
     defaultConfig {
         applicationId = "com.openflux.app"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        minSdk = minSdk.toInt()
+        targetSdk = targetSdk.toInt()
+        versionCode = appVersionCode.toInt()
+        versionName = appVersionName
+        buildConfigField("String", "VERSION_NAME", "\"$appVersionName\"")
+        buildConfigField("int", "VERSION_CODE", appVersionCode)
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -74,6 +83,5 @@ dependencies {
     implementation("org.json:json:20240303")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // Termux terminal modules (local subprojects)
-    implementation(project(":Termux:terminal-view"))
+    implementation(project(":termux:terminal-view"))
 }
