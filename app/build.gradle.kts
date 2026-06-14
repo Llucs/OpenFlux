@@ -55,7 +55,6 @@ android {
 }
 
 dependencies {
-    // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
@@ -70,17 +69,11 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.core:core-ktx:1.15.0")
 
-    // OkHttp for API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
-
-    // JSON
     implementation("org.json:json:20240303")
-
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // Termux terminal-view library from JitPack
-    // Provides TerminalView + TerminalSession + JNI native code
-    implementation("com.termux.termux-app:terminal-view:0.118.0")
+    // Termux terminal modules (local subprojects)
+    implementation(project(":Termux:terminal-view"))
 }

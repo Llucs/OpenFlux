@@ -11,8 +11,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
-        maven { url = uri("https://maven.google.com") }
     }
 }
 rootProject.name = "OpenFlux"
 include(":app")
+include(":Termux:terminal-emulator")
+include(":Termux:terminal-view")
+project(":Termux:terminal-emulator").projectDir = file("Termux/terminal-emulator")
+project(":Termux:terminal-view").projectDir = file("Termux/terminal-view")

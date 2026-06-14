@@ -27,9 +27,14 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
         private set
 
     fun initializeSession(shellPath: String = findShell(), cwd: String = "/") {
-        session = TerminalSession(
-            shellPath, cwd, null, null, 2000, this
+        val env = arrayOf(
+            "TERM=xterm-256color",
+            "HOME=/data/data/com.termux/files/home",
+            "PREFIX=/data/data/com.termux/files/usr",
+            "PATH=/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/bin/applets:/system/bin:/system/xbin",
+            "LANG=en_US.UTF-8"
         )
+        session = TerminalSession(shellPath, cwd, null, env, 2000, this)
         session?.let { s ->
             terminalView.attachSession(s)
             _isRunning.value = true
@@ -46,8 +51,12 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
 
     private fun findShell(): String {
         val termuxShell = "/data/data/com.termux/files/usr/bin/bash"
-        return if (java.io.File(termuxShell).exists()) termuxShell
-        else "/system/bin/sh"
+        val shShell = "/system/bin/sh"
+        return when {
+            java.io.File(termuxShell).exists() -> termuxShell
+            java.io.File(shShell).exists() -> shShell
+            else -> "sh"
+        }
     }
 
     override fun onTextChanged(changedSession: TerminalSession) {
@@ -67,12 +76,12 @@ class TerminalPresenter(context: Context) : TerminalViewClient, TerminalSessionC
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
     }
 
-    override fun onPasteTextFromClipboard(session: TerminalSession?) {
+    override fun onPasteTextFromClipboard(session: TerminalSession) {
         val clipboard = terminalView.context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         val clipData = clipboard.primaryClip
         if (clipData != null && clipData.itemCount > 0) {
             val text = clipData.getItemAt(0).text
-            if (text != null) session?.write(text.toString())
+            if (text != null) session.write(text.toString())
         }
     }
 
